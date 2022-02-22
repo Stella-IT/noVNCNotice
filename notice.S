@@ -15,12 +15,12 @@ call move_cursor
 mov si, yummy_nutella
 call print
 
-mov ah, 3 ; get cursor's location
+mov ah, 03h ; get cursor's location
 int 10h ; video call
 pusha ; backup cursor's location
 
 xor dl, dl
-mov dh, 24 ; 80x24 / bottom
+mov dh, 18h ; 80x24 / bottom
 call move_cursor ; write to bottom
 mov si, memes
 call print
@@ -38,7 +38,7 @@ set_color:
     xor bh, bh ; set bh to zero
     .loop1:
         lodsb ; get next byte
-        cmp al, 0 ; 00h = exit
+        cmp al, 00h ; 00h = exit
         je .ret
         mov cl, al ; startloc
         lodsb
@@ -65,7 +65,7 @@ print:
 
     .loop:
         lodsb
-        cmp al, 0 ; '\0' = exit
+        cmp al, 00h ; '\0' = exit
         je .ret
         cmp al, 0Ah ; '\n' = newline
         je .newline
@@ -74,9 +74,9 @@ print:
         jmp .loop
 
     .newline:
-        mov ah, 3 ; get cursor's location
+        mov ah, 03h ; get cursor's location
         int 10h ; video call
-        mov ah, 2 ; move cursor's location
+        mov ah, 02h ; move cursor's location
         xor dl, dl ; set row to zero
         inc dh ; increase column
         int 10h ; video call
@@ -89,14 +89,14 @@ print:
 
 move_cursor:
     pusha
-    mov ah, 2 ; set cursor's location
+    mov ah, 02h ; set cursor's location
     int 10h ; video call
     popa
     ret
 
-yummy_nutella: db "Stella IT noVNC Proxy Notice", 0Ah, 0Ah, "Sorry, but this product doesn't support noVNC Remote Console.", 0Ah, 0Ah, "Please consult https://s4a.it/nonovnc to details.", 0Ah, 0Ah, "Thank you.", 0Ah, "Stella IT Inc.", 0Ah, 0
-memes: db "...btw we use arch, Do YoU kNoW sAnS?", 0
-colordb: db 1Ah, 1Ch, 0Bh, 1Dh, 20h, 09h, 21h, 23h, 0Dh, 24h, 25h, 0Ah, 26h, 28h, 0Eh, 2Ah, 2Eh, 0Ch, 30h, 35h, 0Fh, 0 ;StartLoc, EndLoc, Color
+yummy_nutella: db "Stella IT noVNC Proxy Notice", 0Ah, 0Ah, "Sorry, but this product doesn't support noVNC Remote Console.", 0Ah, 0Ah, "Please consult https://s4a.it/nonovnc to details.", 0Ah, 0Ah, "Thank you.", 0Ah, "Stella IT Inc.", 0Ah, 00h
+memes: db "...btw we use arch, Do YoU kNoW sAnS?", 00h
+colordb: db 1Ah, 1Ch, 0Bh, 1Dh, 20h, 09h, 21h, 23h, 0Dh, 24h, 25h, 0Ah, 26h, 28h, 0Eh, 2Ah, 2Eh, 0Ch, 30h, 35h, 0Fh, 00h ;StartLoc, EndLoc, Color
 
-times 510-($-$$) db 0 ; fill zero to fit 512 bytes
+times 510-($-$$) db 00h ; fill zero to fit 512 bytes
 dw 0xAA55 ; boot signature
