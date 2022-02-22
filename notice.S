@@ -1,121 +1,102 @@
 bits 16
 org 0x7C00
 
-xor ah, ah
-mov al, 3
-int 10h
+xor ah, ah ; set video mode
+mov al, 03h ; to 03h in order to clear screen
+int 10h ; video call
 
-pusha
-mov cl, 1Ah
-mov dl, 1Ch
-mov dh, 0Bh
-call set_color_fl
-mov cl, 1Dh
-mov dl, 20h
-mov dh, 09h
-call set_color_fl
-mov cl, 21h
-mov dl, 23h
-mov dh, 0Dh
-call set_color_fl
-mov cl, 24h
-mov dl, 25h
-mov dh, 0Ah
-call set_color_fl
-mov cl, 26h
-mov dl, 28h
-mov dh, 0Eh
-call set_color_fl
-mov cl, 2Ah
-mov dl, 2Eh
-mov dh, 0Ch
-call set_color_fl
-mov cl, 30h
-mov dl, 35h
-mov dh, 0Fh
-call set_color_fl
-popa
+mov si, colordb
+call set_color
 
 xor dh, dh
-mov dl, 1Ah
+mov dl, 1Ah ; centralize first line
 call move_cursor
 
 mov si, yummy_nutella
 call print
 
-mov ah, 3
-int 10h
-pusha
+mov ah, 3 ; get cursor's location
+int 10h ; video call
+pusha ; backup cursor's location
 
 xor dl, dl
-mov dh, 24
-call move_cursor
-
+mov dh, 24 ; 80x24 / bottom
+call move_cursor ; write to bottom
 mov si, memes
 call print
 
 popa
-call move_cursor
+call move_cursor ; rollback cursor's location
 
 ;int 18h ; for debug
-jmp $ ; no more cli-hlt because Xen shuts down the VM
+jmp $ ; loop rather than cli-hlt; because Xen shuts down the VM
 
-set_color_fl:
+set_color:
     pusha
-    mov ax, 0xB800
+    mov ax, 0xB800 ; video memory base path
     mov es, ax
-    xor bh, bh
-    .sc_internal:
+    xor bh, bh ; set bh to zero
+    .loop1:
+        lodsb ; get next byte
+        cmp al, 0 ; 00h = exit
+        je .ret
+        mov cl, al ; startloc
+        lodsb
+        mov dl, al ; endloc
+        lodsb
+        mov dh, al ; color
+    .loop2:
         mov bl, cl
         add bl, cl
-        inc bl
-        cbw
-        mov byte [es:bx], dh
+        inc bl ; bl = cl * 2 + 1
+        cbw ; bx = bh(00h) + bl
+        mov BYTE [es:bx], dh ; set color of this door
         cmp cl, dl
-        jge .sc_ret
-        inc cl
-        jmp .sc_internal
-    .sc_ret:
+        jge .loop1 ; coloring end if cl >= dl
+        inc cl ; fill next door
+        jmp .loop2
+    .ret:
         popa
         ret
 
 print:
     pusha
-    xor bh, bh
+    xor bh, bh ; we won't use page number
 
-    .p_internal:
+    .loop:
         lodsb
-        cmp al, 0
-        je .p_ret
-        cmp al, 0Ah
-        je .p_newline
-        mov ah, 0Eh
-        int 10h
-        jmp .p_internal
+        cmp al, 0 ; '\0' = exit
+        je .ret
+        cmp al, 0Ah ; '\n' = newline
+        je .newline
+        mov ah, 0Eh ; write character 
+        int 10h ; video call
+        jmp .loop
 
-    .p_newline:
-        mov ah, 3
-        int 10h
-        mov ah, 2
-        xor dl, dl
-        inc dh
-        int 10h
-        jmp .p_internal
-
-    .p_ret:
+    .newline:
+        mov ah, 3 ; get cursor's location
+        int 10h ; video call
+        mov ah, 2 ; move cursor's location
+        xor dl, dl ; set row to zero
+        inc dh ; increase column
+        int 10h ; video call
+        jmp .loop
+    
+    .ret:
         popa
         ret
 
 
 move_cursor:
     pusha
-    mov ah, 2
-    int 10h
+    mov ah, 2 ; set cursor's location
+    int 10h ; video call
     popa
     ret
 
 yummy_nutella: db "Stella IT noVNC Proxy Notice", 0Ah, 0Ah, "Sorry, but this product doesn't support noVNC Remote Console.", 0Ah, 0Ah, "Please consult https://s4a.it/nonovnc to details.", 0Ah, 0Ah, "Thank you.", 0Ah, "Stella IT Inc.", 0Ah, 0
 memes: db "...btw we use arch, Do YoU kNoW sAnS?", 0
+colordb: db 1Ah, 1Ch, 0Bh, 1Dh, 20h, 09h, 21h, 23h, 0Dh, 24h, 25h, 0Ah, 26h, 28h, 0Eh, 2Ah, 2Eh, 0Ch, 30h, 35h, 0Fh, 0 ;StartLoc, EndLoc, Color
 
-times 510-($-$$) db 0
-dw 0xAA55
+times 510-($-$$) db 0 ; fill zero to fit 512 bytes
+dw 0xAA55 ; boot signature
